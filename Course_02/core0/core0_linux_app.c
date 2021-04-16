@@ -6,6 +6,8 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+
+#include "../shared/shared.h"
 #include "../core1/core1_bin.c"
 
 #define NUM_OF_MAPPED_ADDR 10 
@@ -166,13 +168,19 @@ int main(int argc, char** argv)
 
 	usleep( 1000 );
 
+	ctx_phymem_write( SHARED_MEM_ADDRESS, 0x1000, 1, 1 );
 	while ( 1 ) { /* 0x18000000 */
-		static int prev_counter = 0 ;
-		int current_counter = 0;
-		ctx_phymem_read( 0x18000000, 0x1000, 0, &current_counter );
-		if( prev_counter != current_counter ) {
-			prev_counter = current_counter;
-			printf( "CPU1 - BM Counter = %d\n", prev_counter );
+		static int prev_ping = -1 ;
+		int current_ping = -1;
+		ctx_phymem_read( SHARED_MEM_ADDRESS, 0x1000, 0, &current_ping );
+		if( prev_ping != current_ping ) {
+			prev_ping = current_ping ;
+			printf( "CPU1 - BM Ping = %d\n", prev_ping );
+
+			int current_pong = 0;
+			ctx_phymem_read( SHARED_MEM_ADDRESS, 0x1000, 1, &current_pong );
+			current_pong ++;
+			ctx_phymem_write( SHARED_MEM_ADDRESS, 0x1000, 1, current_pong );
 		}
 
 	}

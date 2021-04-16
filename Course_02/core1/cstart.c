@@ -1,16 +1,21 @@
 #include <stdint.h>
+#include "../shared/shared.h"
 
-volatile uint32_t* counter = (uint32_t*)0x18000000;
+baton_t* baton = (baton_t*) SHARED_MEM_ADDRESS;
 
 int main() {
-	*counter = 0;
 
-	for( int i = 0 ; i < 0xffffffffff ; i ++ ) {
+	baton->ping = 0;
 
-		*counter = (*counter) + 1;
-	}
+	int prev_pong = -1;
+	while (1) {
 
-	while (1) {};
+		if( prev_pong != baton->pong ) {
+			prev_pong = baton->pong;
+			baton->ping ++;
+		}
+			
+	};
 
 	return 0;
 }
