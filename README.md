@@ -2,7 +2,7 @@
 
 ## Goal
  1. Simple/ Lean as possible
- 2. Hardware independent (should apply to any CV/AV and A10 SoCFPGA without or limited modification
+ 1. Hardware independent (should apply to any CV/AV and A10 SoCFPGA without or limited modification )
 
 
 ## Tested Enviroment 
