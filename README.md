@@ -2,7 +2,7 @@
 
 ## Goal
  1. Simple/ Lean as possible
- 1. Hardware independent (should apply to any CV/AV and A10 SoCFPGA without or limited modification )
+ 2. decouple HW and easy to migrate to different generation and boards
 
 ## Simple Description for each
 
