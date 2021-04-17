@@ -113,6 +113,22 @@ unsigned int ctx_phymem_memcpy( unsigned int addr, int size, int offset, unsigne
 	return copy_success;
 }
 
+unsigned int ctx_phymem_map( unsigned int addr, int size, void** return_value )
+{
+	int map_success = -1;
+	for ( int i = 0 ; i < NUM_OF_MAPPED_ADDR ; i ++ ) {
+		if( g_ctx. mmapped[ i ]. phy_addr == 0 && g_ctx. mmapped[ i ]. size == 0 ) {
+			_prepare_vir_memory( i, addr, size );
+		}
+		if( g_ctx. mmapped[ i ]. phy_addr == addr && g_ctx. mmapped[ i ]. size == size ) {
+			*return_value = (void*) (g_ctx. mmapped[ i ]. vir_addr );
+			map_success = 1; break;
+		}
+	}
+
+	return map_success;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -168,19 +184,18 @@ int main(int argc, char** argv)
 
 	usleep( 1000 );
 
-	ctx_phymem_write( SHARED_MEM_ADDRESS, 0x1000, 1, 1 );
-	while ( 1 ) { /* 0x18000000 */
-		static int prev_ping = -1 ;
-		int current_ping = -1;
-		ctx_phymem_read( SHARED_MEM_ADDRESS, 0x1000, 0, &current_ping );
-		if( prev_ping != current_ping ) {
-			prev_ping = current_ping ;
-			printf( "CPU1 - BM Ping = %d\n", prev_ping );
+//	ctx_phymem_write( SHARED_MEM_ADDRESS, 0x1000, 1, 1 );
+	volatile shared_memory_t *shm = NULL;
+	ctx_phymem_map( SHARED_MEM_ADDRESS, 0x1000, (void*) &shm);
+	shm->pong = 1; 
+	unsigned int prev_ping = -1 ;
 
-			int current_pong = 0;
-			ctx_phymem_read( SHARED_MEM_ADDRESS, 0x1000, 1, &current_pong );
-			current_pong ++;
-			ctx_phymem_write( SHARED_MEM_ADDRESS, 0x1000, 1, current_pong );
+	while ( 1 ) { /* 0x18000000 */
+
+		if( prev_ping != shm->ping ) {
+			prev_ping = shm->ping;
+			printf( "CPU1 - BM Ping = %d\n", prev_ping );
+			shm->pong ++;
 		}
 
 	}

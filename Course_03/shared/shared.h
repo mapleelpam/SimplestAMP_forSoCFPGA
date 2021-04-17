@@ -10,7 +10,7 @@ typedef struct {
 
 	unsigned int dip;
 	unsigned int btn;
-} baton_t;
+} shared_memory_t;
 
 
 #endif

@@ -185,27 +185,27 @@ int main(int argc, char** argv)
 	usleep( 1000 );
 
 
-	baton_t *baton = NULL;
-	ctx_phymem_map( SHARED_MEM_ADDRESS, 0x1000, (void*) &baton );
-	baton->pong = 1;
+	shared_memory_t *shm= NULL;
+	ctx_phymem_map( SHARED_MEM_ADDRESS, 0x1000, (void*) &shm);
+	shm->pong = 1;
 
 	unsigned int prev_ping = -1 ;
-	unsigned int prev_btn = baton->btn ;
-	unsigned int prev_dip = baton->dip ;
+	unsigned int prev_btn = shm->btn ;
+	unsigned int prev_dip = shm->dip ;
 	while ( 1 ) { /* 0x18000000 */
 
-		if( prev_ping != baton->ping ) {
-			prev_ping = baton->ping;
+		if( prev_ping != shm->ping ) {
+			prev_ping = shm->ping;
 //			printf( "CPU1 - BM Ping = %d\n", prev_ping );
-			baton->pong ++;
+			shm->pong ++;
 		}
 
-		if( prev_btn != baton->btn ) {
-			prev_btn = baton->btn;
+		if( prev_btn != shm->btn ) {
+			prev_btn = shm->btn;
 			printf("CPU1 - FPGA Button chagned 0x%d\n", prev_btn );
 		}
-		if( prev_dip != baton->dip ) {
-			prev_dip = baton->dip;
+		if( prev_dip != shm->dip ) {
+			prev_dip = shm->dip;
 			printf("CPU1 - FPGA DIP chagned 0x%d\n", prev_dip );
 		}
 

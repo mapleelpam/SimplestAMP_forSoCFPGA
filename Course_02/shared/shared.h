@@ -8,7 +8,7 @@ typedef struct {
 	int ping; // modify by core1, receive from core0
 	int pong; // modify by core0, receive from core1
 
-} baton_t;
+} shared_memory_t;
 
 
 #endif
