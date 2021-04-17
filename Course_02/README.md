@@ -1,9 +1,10 @@
 
 ## Goal 
  To improve 3 major shortcoming in Course01
- 1. Seperated 2 files. AMP is Walking the tightrope. Sometime seperated file will miss the version and cause debuging mistake.
- 1. Core1 is free running. So we add ping/pong communication in polling style to let linux application get continuous numbers.
+ 1. Separated 2 files. AMP is Walking the tightrope. Sometime separated file will miss the version and cause debugging mistake.
  1. There's no shared memory/ data format definition.
+ 1. Core1 is free running. So we add ping/pong communication in polling style to let linux application get continuous numbers.
+
 
 ## Solution
  1. used 'xxd' to embedded core1 binary into linux application (prevent version mismatch)
