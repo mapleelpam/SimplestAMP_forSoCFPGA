@@ -4,6 +4,13 @@
  1. Simple/ Lean as possible
  2. decouple HW and easy to migrate to different generation and boards
 
+## BareMetal Polling 
+ The main reason of AMP (Linux+BM) is - 
+  * unleash real-time capabilty in BareMetal 
+  * use rich OpenSource resource in Linux
+ If you have multiple, unknown latency, different priotiy event. It's better to use interrupt and/or enable an RTOS on a dedicate core.
+ For simple case, polling should work for most cases.
+
 ## Simple Description for each
 
   Course | Description |
