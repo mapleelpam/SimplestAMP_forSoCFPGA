@@ -15,7 +15,7 @@ popd
 
 pushd core0/
 
-arm-linux-gnueabi-gcc -o core0_linux_app core0_linux_app.c -static
+arm-linux-gnueabi-gcc -o core0_c3 core0_linux_app.c -static
 
 popd
 

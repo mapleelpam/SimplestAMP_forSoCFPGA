@@ -3,6 +3,7 @@
 
 shared_memory_t* shm= (shared_memory_t*) SHARED_MEM_ADDRESS;
 
+// Define in GHRD, and test with 19.1
 volatile uint32_t* LED_PIO = (uint32_t*) ( 0xFF200000 + 0x10040 );
 volatile uint32_t* DIP_PIO = (uint32_t*) ( 0xFF200000 + 0x10080 );
 volatile uint32_t* BTN_PIO = (uint32_t*) ( 0xFF200000 + 0x100c0 );
