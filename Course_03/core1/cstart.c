@@ -4,9 +4,19 @@
 shared_memory_t* shm= (shared_memory_t*) SHARED_MEM_ADDRESS;
 
 // Define in GHRD, and test with 19.1
+#ifdef ARROW_SOCKIT_GSRD_19_1
+
 volatile uint32_t* LED_PIO = (uint32_t*) ( 0xFF200000 + 0x10040 );
 volatile uint32_t* DIP_PIO = (uint32_t*) ( 0xFF200000 + 0x10080 );
 volatile uint32_t* BTN_PIO = (uint32_t*) ( 0xFF200000 + 0x100c0 );
+
+#else  // This default setting is for CVSoCDevKit GSRD 20.1
+
+volatile uint32_t* LED_PIO = (uint32_t*) ( 0xFF200000 + 0x60040 );
+volatile uint32_t* DIP_PIO = (uint32_t*) ( 0xFF200000 + 0x60080 );
+volatile uint32_t* BTN_PIO = (uint32_t*) ( 0xFF200000 + 0x600c0 );
+
+#endif
 
 int main() {
 

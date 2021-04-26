@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -x
+set -x -e
 
 pushd core1/
 rm -f startup.o cstart.o core1.elf  core1.bin  core1.elf.objdump 

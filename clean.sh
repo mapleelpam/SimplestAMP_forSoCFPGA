@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -x
+set -x -e
 
 pushd Course_01/
 ./clean.sh 

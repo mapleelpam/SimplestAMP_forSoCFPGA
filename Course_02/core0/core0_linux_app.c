@@ -64,39 +64,6 @@ void _prepare_vir_memory( int index, unsigned int addr, unsigned int size )
 			g_ctx. mmapped[ index ]. phy_addr);
 }
 
-int ctx_phymem_write( unsigned int addr, int size, int offset, int value )
-{
-	int write_success = -1;
-	for ( int i = 0 ; i < NUM_OF_MAPPED_ADDR ; i ++ ) {
-		if( g_ctx. mmapped[ i ]. phy_addr == 0 && g_ctx. mmapped[ i ]. size == 0 ) {
-			_prepare_vir_memory( i, addr, size );
-		}
-		if( g_ctx. mmapped[ i ]. phy_addr == addr && g_ctx. mmapped[ i ]. size == size ) {
-			*(g_ctx. mmapped[ i ]. vir_addr + offset ) = value;
-			write_success = 1; break;
-		}
-	}
-
-	return write_success;
-}
-
-
-unsigned int ctx_phymem_read( unsigned int addr, int size, int offset, int* return_value )
-{
-	int read_success = -1;
-	for ( int i = 0 ; i < NUM_OF_MAPPED_ADDR ; i ++ ) {
-		if( g_ctx. mmapped[ i ]. phy_addr == 0 && g_ctx. mmapped[ i ]. size == 0 ) {
-			_prepare_vir_memory( i, addr, size );
-		}
-		if( g_ctx. mmapped[ i ]. phy_addr == addr && g_ctx. mmapped[ i ]. size == size ) {
-			*return_value = *(g_ctx. mmapped[ i ]. vir_addr + offset );
-			read_success = 1; break;
-		}
-	}
-
-	return read_success;
-}
-
 unsigned int ctx_phymem_memcpy( unsigned int addr, int size, int offset, unsigned char* copy_from, int length_of_copy )
 {
 	int copy_success = -1;
@@ -144,9 +111,13 @@ int main(int argc, char** argv)
 	 * */
 //	ret_value = ctx_phymem_write( 0xFFD08000, 0x1000, (0xC4/4), 0x10000000 );
 //	if( ret_value < 0 )	goto LEAVE;
-
-	ret_value = ctx_phymem_write( 0x00000000, 0x1000, 0, 0xE3A0F201 /* ldr pc, =x10000000 */ );
+	
+	volatile unsigned int *pointer_zero = NULL;
+	ret_value = ctx_phymem_map( 0x00000000, 0x1000, (void*) &pointer_zero );
 	if( ret_value < 0 )	goto LEAVE; 
+
+	int pointer_zero_save = *pointer_zero;
+	*pointer_zero = 0xE3A0F201 /* ldr pc, =x10000000 */;
 
 	/*  Address - 0xFFD05000, reset manager
 	 *  Length  - 0x1000, a page
@@ -154,18 +125,15 @@ int main(int argc, char** argv)
 	 *  Value   - ,
 	 *  Referenc - cv_54001.pdf / p4-17 / rstmgr -mpumodrst/ bit1-1 meant to assert CPU1 
 	 * */
-	unsigned int register_value = 0;
-	ret_value = ctx_phymem_read( 0xFFD05000, 0x1000, (0x10/4), &register_value );
-	if( ret_value < 0 )	goto LEAVE;
+	volatile unsigned int *mpumodrst = NULL;
+	ret_value = ctx_phymem_map( 0xFFD05000, 0x1000, (void*) &mpumodrst );
+	if( ret_value < 0 )	goto LEAVE; 
+	mpumodrst += (0x10/4);
 
-	register_value = register_value |  (~0xFFFFFFFD);
-
-	ret_value = ctx_phymem_write( 0xFFD05000, 0x1000, (0x10/4), register_value );
-	if( ret_value < 0 )	goto LEAVE;
-
+	*mpumodrst = (*mpumodrst) | (~0xFFFFFFFD);
 	usleep( 1000 );
 
-
+	/* copy core1 BM program to the address */
 	ctx_phymem_memcpy( 0x10000000, 0x3000000, 0x0, core1_bin, core1_bin_len);
 
 	/*  Address - 0xFFD05000, reset manager
@@ -174,24 +142,18 @@ int main(int argc, char** argv)
 	 *  Value   - 0x10000000,
 	 *  Referenc - cv_54001.pdf / p4-17 / rstmgr -mpumodrst/ bit1-0 meant to de-assert CPU1 
 	 * */
-	ret_value = ctx_phymem_read( 0xFFD05000, 0x1000, (0x10/4), &register_value );
-	if( ret_value < 0 )	goto LEAVE;
-
-	register_value = register_value &  (0xFFFFFFFD);
-
-	ret_value = ctx_phymem_write( 0xFFD05000, 0x1000, (0x10/4), register_value ); 
-	if( ret_value < 0 )	goto LEAVE;
-
+	*mpumodrst = (*mpumodrst) & (0xFFFFFFFD); 
 	usleep( 1000 );
 
-//	ctx_phymem_write( SHARED_MEM_ADDRESS, 0x1000, 1, 1 );
+	*pointer_zero = pointer_zero_save; // recovery, after reset
+
+	/* communicate with Core1 via 0x18000000 */
 	volatile shared_memory_t *shm = NULL;
 	ctx_phymem_map( SHARED_MEM_ADDRESS, 0x1000, (void*) &shm);
 	shm->pong = 1; 
 	unsigned int prev_ping = -1 ;
 
-	while ( 1 ) { /* 0x18000000 */
-
+	while ( 1 ) { 
 		if( prev_ping != shm->ping ) {
 			prev_ping = shm->ping;
 			printf( "CPU1 - BM Ping = %d\n", prev_ping );

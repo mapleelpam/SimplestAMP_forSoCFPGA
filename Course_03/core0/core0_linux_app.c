@@ -8,7 +8,16 @@
 #include <sys/stat.h>
 
 #include "../shared/shared.h"
+
+#ifdef ARROW_SOCKIT_GSRD_19_1
 #include "../core1/core1_bin.c"
+#define CORE1_BIN core1_bin
+#define CORE1_BIN_LEN core1_bin_len
+#else
+#include "../core1/core1_sockit_bin.c" 
+#define CORE1_BIN core1_sockit_bin
+#define CORE1_BIN_LEN core1_sockit_bin_len
+#endif
 
 #define NUM_OF_MAPPED_ADDR 10 
 
@@ -40,7 +49,6 @@ int init_ctx()
 
 int destroy_ctx()
 {
-
 	for ( int i = 0 ; i < NUM_OF_MAPPED_ADDR ; i ++ ) {
 		if( g_ctx. mmapped[ i ]. vir_addr ) {
 			munmap( g_ctx. mmapped[i]. vir_addr, g_ctx. mmapped[i]. size );
@@ -53,7 +61,6 @@ int destroy_ctx()
 }
 void _prepare_vir_memory( int index, unsigned int addr, unsigned int size )
 {
-
 	g_ctx. mmapped[ index ]. phy_addr = addr;
 	g_ctx. mmapped[ index ]. size = size;
 	g_ctx. mmapped[ index ]. vir_addr = (unsigned int *)mmap(NULL,
@@ -62,39 +69,6 @@ void _prepare_vir_memory( int index, unsigned int addr, unsigned int size )
 			MAP_SHARED,
 			g_ctx. _fd,
 			g_ctx. mmapped[ index ]. phy_addr);
-}
-
-int ctx_phymem_write( unsigned int addr, int size, int offset, int value )
-{
-	int write_success = -1;
-	for ( int i = 0 ; i < NUM_OF_MAPPED_ADDR ; i ++ ) {
-		if( g_ctx. mmapped[ i ]. phy_addr == 0 && g_ctx. mmapped[ i ]. size == 0 ) {
-			_prepare_vir_memory( i, addr, size );
-		}
-		if( g_ctx. mmapped[ i ]. phy_addr == addr && g_ctx. mmapped[ i ]. size == size ) {
-			*(g_ctx. mmapped[ i ]. vir_addr + offset ) = value;
-			write_success = 1; break;
-		}
-	}
-
-	return write_success;
-}
-
-
-unsigned int ctx_phymem_read( unsigned int addr, int size, int offset, int* return_value )
-{
-	int read_success = -1;
-	for ( int i = 0 ; i < NUM_OF_MAPPED_ADDR ; i ++ ) {
-		if( g_ctx. mmapped[ i ]. phy_addr == 0 && g_ctx. mmapped[ i ]. size == 0 ) {
-			_prepare_vir_memory( i, addr, size );
-		}
-		if( g_ctx. mmapped[ i ]. phy_addr == addr && g_ctx. mmapped[ i ]. size == size ) {
-			*return_value = *(g_ctx. mmapped[ i ]. vir_addr + offset );
-			read_success = 1; break;
-		}
-	}
-
-	return read_success;
 }
 
 unsigned int ctx_phymem_memcpy( unsigned int addr, int size, int offset, unsigned char* copy_from, int length_of_copy )
@@ -144,9 +118,13 @@ int main(int argc, char** argv)
 	 * */
 //	ret_value = ctx_phymem_write( 0xFFD08000, 0x1000, (0xC4/4), 0x10000000 );
 //	if( ret_value < 0 )	goto LEAVE;
-
-	ret_value = ctx_phymem_write( 0x00000000, 0x1000, 0, 0xE3A0F201 /* ldr pc, =x10000000 */ );
+	
+	volatile unsigned int *pointer_zero = NULL;
+	ret_value = ctx_phymem_map( 0x00000000, 0x1000, (void*) &pointer_zero );
 	if( ret_value < 0 )	goto LEAVE; 
+
+	int pointer_zero_save = *pointer_zero;
+	*pointer_zero = 0xE3A0F201 /* ldr pc, =x10000000 */;
 
 	/*  Address - 0xFFD05000, reset manager
 	 *  Length  - 0x1000, a page
@@ -154,19 +132,16 @@ int main(int argc, char** argv)
 	 *  Value   - ,
 	 *  Referenc - cv_54001.pdf / p4-17 / rstmgr -mpumodrst/ bit1-1 meant to assert CPU1 
 	 * */
-	unsigned int register_value = 0;
-	ret_value = ctx_phymem_read( 0xFFD05000, 0x1000, (0x10/4), &register_value );
-	if( ret_value < 0 )	goto LEAVE;
+	volatile unsigned int *mpumodrst = NULL;
+	ret_value = ctx_phymem_map( 0xFFD05000, 0x1000, (void*) &mpumodrst );
+	if( ret_value < 0 )	goto LEAVE; 
+	mpumodrst += (0x10/4);
 
-	register_value = register_value |  (~0xFFFFFFFD);
-
-	ret_value = ctx_phymem_write( 0xFFD05000, 0x1000, (0x10/4), register_value );
-	if( ret_value < 0 )	goto LEAVE;
-
+	*mpumodrst = (*mpumodrst) | (~0xFFFFFFFD);
 	usleep( 1000 );
 
-
-	ctx_phymem_memcpy( 0x10000000, 0x3000000, 0x0, core1_bin, core1_bin_len);
+	/* copy core1 BM program to the address */
+	ctx_phymem_memcpy( 0x10000000, 0x3000000, 0x0, CORE1_BIN, CORE1_BIN_LEN);
 
 	/*  Address - 0xFFD05000, reset manager
 	 *  Length  - 0x1000, a page
@@ -174,15 +149,10 @@ int main(int argc, char** argv)
 	 *  Value   - 0x10000000,
 	 *  Referenc - cv_54001.pdf / p4-17 / rstmgr -mpumodrst/ bit1-0 meant to de-assert CPU1 
 	 * */
-	ret_value = ctx_phymem_read( 0xFFD05000, 0x1000, (0x10/4), &register_value );
-	if( ret_value < 0 )	goto LEAVE;
-
-	register_value = register_value &  (0xFFFFFFFD);
-
-	ret_value = ctx_phymem_write( 0xFFD05000, 0x1000, (0x10/4), register_value ); 
-	if( ret_value < 0 )	goto LEAVE;
-
+	*mpumodrst = (*mpumodrst) & (0xFFFFFFFD); 
 	usleep( 1000 );
+
+	*pointer_zero = pointer_zero_save; // recovery, after reset
 
 
 	shared_memory_t *shm= NULL;
